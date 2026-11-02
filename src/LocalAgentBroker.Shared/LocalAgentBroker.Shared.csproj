@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AssemblyName>LocalAgentBroker.Shared</AssemblyName>
+    <RootNamespace>LocalAgentBroker.Shared</RootNamespace>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\LocalAgentBroker.Orchestration\LocalAgentBroker.Orchestration.csproj" />
+  </ItemGroup>
+
+</Project>
