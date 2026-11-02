@@ -26,7 +26,7 @@ $files = [System.Collections.Generic.SortedDictionary[string, string]]::new(
 $files.Add('README.md', (Join-Path $repoRoot 'README.md'))
 $files.Add('LICENSE.md', (Join-Path $repoRoot 'LICENSE.md'))
 
-foreach ($directory in @('docs', 'LEGAL'))
+foreach ($directory in @('docs'))
 {
     $directoryPath = Join-Path $repoRoot $directory
     if (-not (Test-Path -LiteralPath $directoryPath -PathType Container))

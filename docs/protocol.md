@@ -1,6 +1,6 @@
 # MCP protocol and run policy
 
-The server exposes five MCP tools. `initialize` reports server name `LocalAgentBroker` and version `0.1.0`. `tools/list` returns the current input schemas. Use those schemas and the live `AgentModelCatalog` for exact model IDs and limits. Catalog admission does not prove provider access to a model.
+The server exposes five MCP tools. `initialize` reports server name `LocalAgentBroker` and version `0.1.1`. `tools/list` returns the current input schemas. Use those schemas and the live `AgentModelCatalog` for exact model IDs and limits. Catalog admission does not prove provider access to a model.
 
 | Tool | Action |
 | --- | --- |

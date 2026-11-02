@@ -63,6 +63,6 @@ The caller is responsible for the cost of each provider request. Check `requeste
 
 ## License and provenance
 
-This repository keeps the XRENGINE Community Source License in [LICENSE.md](LICENSE.md). It is source-available and is not an OSI-approved open-source license. See [LEGAL/README.md](LEGAL/README.md) for scope and contribution terms. Third-party notices remain in [docs/licenses/](docs/licenses/).
+This project uses the [MIT License](LICENSE.md). Third-party components retain their own licenses. Their notices remain in [docs/licenses/](docs/licenses/) and the tray vendor directory.
 
 The code was extracted from `BlackJaxDev/XRENGINE` at commit `3abe3cffd`. The extraction preserves 21 selected history commits. The standalone layout and scripts are later changes.

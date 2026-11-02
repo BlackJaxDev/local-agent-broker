@@ -1,13 +1,12 @@
 <Project>
   <PropertyGroup>
-    <Version>0.1.0</Version>
+    <Version>0.1.1</Version>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <RepositoryUrl>https://github.com/BlackJaxDev/local-agent-broker</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <Authors>BlackJax LLC</Authors>
-    <PackageLicenseFile>LICENSE.md</PackageLicenseFile>
-    <PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <Description>Bounded local orchestration, model transports, and MCP tool contracts.</Description>
   </PropertyGroup>
