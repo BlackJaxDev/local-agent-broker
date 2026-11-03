@@ -32,7 +32,11 @@ function Invoke-BrokerBuild
 {
     param([string[]]$Arguments)
 
-    & $buildScript -DotnetArguments $Arguments
+    $releaseArguments = $Arguments + @(
+        '-p:ContinuousIntegrationBuild=true',
+        "-p:PathMap=$repoRoot=/_/"
+    )
+    & $buildScript -DotnetArguments $releaseArguments
     if ($LASTEXITCODE -ne 0) {
         throw "Build command failed with exit code $LASTEXITCODE."
     }
