@@ -1,6 +1,6 @@
 # MCP protocol and run policy
 
-The server exposes five MCP tools. `initialize` reports server name `LocalAgentBroker` and version `0.1.1`. `tools/list` returns the current input schemas. Use those schemas and the live `AgentModelCatalog` for exact model IDs and limits. Catalog admission does not prove provider access to a model.
+The server exposes five MCP tools. `initialize` reports server name `LocalAgentBroker` and version `0.2.0`. `tools/list` returns the current input schemas. Use those schemas and the live `AgentModelCatalog` for exact model IDs and limits. Catalog admission does not prove provider access to a model.
 
 | Tool | Action |
 | --- | --- |
@@ -27,3 +27,5 @@ An `editor_session` must name one manifest in the configured sessions root. The 
 The optional `swarm` request uses exact `allowed_paths` and immutable source snapshots. The current catalog accepts `gpt-6-luna` at `max` effort or `claude-haiku-5-5` at a supported effort. A swarm cannot use editor, repository, or hosted tools. It returns reviewed code proposals by default. `swarm.auto_apply` permits host writes only to the allowed paths and currently requires Windows handle validation. Use it only with authority to edit those files. Inspect the change list, review chain, failures, and applied paths. Validate the result in the local workspace.
 
 Every provider run is billed separately. The caller sets the authorization and cost boundary. The broker does not switch the host application's model.
+
+The HTTP tool client supports stateless JSON responses to `ping`, `tools/list`, and `tools/call`. It does not implement SSE or Streamable HTTP session negotiation. Tool annotations control access; a tool name does not grant read-only permission. Missing annotations make a tool potentially mutating and destructive.

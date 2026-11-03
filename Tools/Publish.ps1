@@ -12,6 +12,22 @@ $brokerProject = Join-Path $repoRoot 'src/LocalAgentBroker/LocalAgentBroker.cspr
 $trayProject = Join-Path $repoRoot 'src/LocalAgentBroker.Tray/LocalAgentBroker.Tray.csproj'
 $orchestrationProject = Join-Path $repoRoot 'src/LocalAgentBroker.Orchestration/LocalAgentBroker.Orchestration.csproj'
 
+# Remove previous output so deleted projects cannot remain in a release archive.
+$brokerOutput = [System.IO.Path]::GetFullPath((Join-Path $artifactsRoot 'broker'))
+$artifactsPrefix = [System.IO.Path]::GetFullPath($artifactsRoot).TrimEnd('\', '/') + [System.IO.Path]::DirectorySeparatorChar
+if (-not $brokerOutput.StartsWith($artifactsPrefix, [System.StringComparison]::OrdinalIgnoreCase))
+{
+    throw 'The publish directory must be below artifacts.'
+}
+if (Test-Path -LiteralPath $brokerOutput)
+{
+    if ((Get-Item -LiteralPath $brokerOutput).Attributes -band [System.IO.FileAttributes]::ReparsePoint)
+    {
+        throw 'The publish directory must not be a link.'
+    }
+    Remove-Item -LiteralPath $brokerOutput -Recurse -Force
+}
+
 function Invoke-BrokerBuild
 {
     param([string[]]$Arguments)

@@ -4,7 +4,6 @@
     <Project Path="src/LocalAgentBroker.Shared/LocalAgentBroker.Shared.csproj" />
     <Project Path="src/LocalAgentBroker/LocalAgentBroker.csproj" />
     <Project Path="src/LocalAgentBroker.Tray/LocalAgentBroker.Tray.csproj" />
-    <Project Path="src/LocalAgentBroker.Integrations.XREngine/LocalAgentBroker.Integrations.XREngine.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/LocalAgentBroker.Tests/LocalAgentBroker.Tests.csproj" />

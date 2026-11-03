@@ -12,7 +12,12 @@ if ($DotnetArguments[0] -notin @('build', 'test', 'publish', 'restore', 'msbuild
 }
 
 # Use the same lock across checkouts to protect the host memory budget.
-$buildMutex = [System.Threading.Mutex]::new($false, 'Local\XREngine-AgentBuild')
+$mutexName = if ([string]::IsNullOrWhiteSpace($env:LOCAL_AGENT_BROKER_BUILD_MUTEX)) {
+    'Local\LocalAgentBroker-Build'
+} else {
+    $env:LOCAL_AGENT_BROKER_BUILD_MUTEX
+}
+$buildMutex = [System.Threading.Mutex]::new($false, $mutexName)
 $lockTaken = $false
 $previousNodeReuse = $env:MSBUILDDISABLENODEREUSE
 $buildExitCode = 1

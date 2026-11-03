@@ -31,22 +31,31 @@ public sealed class HttpMcpToolProvider : IAgentToolProvider
         _toolTimeout = toolTimeout ?? TimeSpan.FromSeconds(30);
     }
 
-    public async Task<string> PreflightAsync(string expectedEditorSession, CancellationToken cancellationToken)
+    /// <summary>Checks endpoint liveness and, when configured, the remote session identity.</summary>
+    public async Task<string?> PreflightAsync(
+        string expectedEditorSession,
+        CancellationToken cancellationToken,
+        IReadOnlyList<string>? sessionIdentityPath = null)
     {
         JsonElement result = await SendRequestAsync(
             "ping",
             parameters: null,
             cancellationToken,
             _toolTimeout);
-        string? reportedSession = null;
-        if (result.ValueKind == JsonValueKind.Object
-            && result.TryGetProperty("status", out JsonElement status)
-            && status.TryGetProperty("editorSession", out JsonElement editorSession)
-            && editorSession.TryGetProperty("name", out JsonElement name)
-            && name.ValueKind == JsonValueKind.String)
+        if (sessionIdentityPath is null || sessionIdentityPath.Count == 0)
+            return null;
+
+        JsonElement identity = result;
+        foreach (string property in sessionIdentityPath)
         {
-            reportedSession = name.GetString();
+            if (string.IsNullOrWhiteSpace(property))
+                throw new ArgumentException("Session identity paths must contain nonempty property names.");
+            if (identity.ValueKind != JsonValueKind.Object || !identity.TryGetProperty(property, out identity))
+                throw new AgentToolProviderException(
+                    AgentFailureCategory.ToolDiscovery,
+                    "MCP preflight did not contain the configured session identity.");
         }
+        string? reportedSession = identity.ValueKind == JsonValueKind.String ? identity.GetString() : null;
 
         if (!string.Equals(reportedSession, expectedEditorSession, StringComparison.Ordinal))
         {
@@ -80,7 +89,7 @@ public sealed class HttpMcpToolProvider : IAgentToolProvider
             if (string.IsNullOrWhiteSpace(name))
                 continue;
 
-            (bool readOnly, bool destructive) = ReadToolAnnotations(tool, name);
+            (bool readOnly, bool destructive) = ReadToolAnnotations(tool);
             if (!IsAllowed(name, readOnly, destructive))
                 continue;
 
@@ -304,35 +313,19 @@ public sealed class HttpMcpToolProvider : IAgentToolProvider
         };
     }
 
-    private static (bool ReadOnly, bool Destructive) ReadToolAnnotations(JsonElement tool, string name)
+    private static (bool ReadOnly, bool Destructive) ReadToolAnnotations(JsonElement tool)
     {
-        if (tool.TryGetProperty("annotations", out JsonElement annotations)
-            && annotations.ValueKind == JsonValueKind.Object)
-        {
-            bool readOnly = annotations.TryGetProperty("readOnlyHint", out JsonElement readOnlyElement)
-                && readOnlyElement.ValueKind == JsonValueKind.True;
-            bool destructive = annotations.TryGetProperty("destructiveHint", out JsonElement destructiveElement)
-                && destructiveElement.ValueKind == JsonValueKind.True;
-            return (readOnly, destructive);
-        }
+        if (!tool.TryGetProperty("annotations", out JsonElement annotations)
+            || annotations.ValueKind != JsonValueKind.Object)
+            return (false, true);
 
-        bool heuristicReadOnly = name.StartsWith("get_", StringComparison.OrdinalIgnoreCase)
-            || name.StartsWith("list_", StringComparison.OrdinalIgnoreCase)
-            || name.StartsWith("read_", StringComparison.OrdinalIgnoreCase)
-            || name.StartsWith("find_", StringComparison.OrdinalIgnoreCase)
-            || name.StartsWith("search_", StringComparison.OrdinalIgnoreCase)
-            || name.StartsWith("capture_", StringComparison.OrdinalIgnoreCase)
-            || name.StartsWith("probe_", StringComparison.OrdinalIgnoreCase)
-            || name.StartsWith("dump_", StringComparison.OrdinalIgnoreCase)
-            || name.StartsWith("validate_", StringComparison.OrdinalIgnoreCase)
-            || name.StartsWith("query_", StringComparison.OrdinalIgnoreCase);
-        bool heuristicDestructive = name.StartsWith("delete_", StringComparison.OrdinalIgnoreCase)
-            || name.StartsWith("remove_", StringComparison.OrdinalIgnoreCase)
-            || name.StartsWith("write_", StringComparison.OrdinalIgnoreCase)
-            || name.StartsWith("save_", StringComparison.OrdinalIgnoreCase)
-            || name.StartsWith("import_", StringComparison.OrdinalIgnoreCase)
-            || name.StartsWith("export_", StringComparison.OrdinalIgnoreCase);
-        return (heuristicReadOnly, heuristicDestructive);
+        bool readOnly = annotations.TryGetProperty("readOnlyHint", out JsonElement readOnlyElement)
+            && readOnlyElement.ValueKind == JsonValueKind.True;
+        bool hasDestructiveHint = annotations.TryGetProperty("destructiveHint", out JsonElement destructiveElement);
+        bool destructive = readOnly
+            ? hasDestructiveHint && destructiveElement.ValueKind != JsonValueKind.False
+            : !hasDestructiveHint || destructiveElement.ValueKind != JsonValueKind.False;
+        return (readOnly, destructive);
     }
 
     private static string? TryFindImagePath(JsonElement element)

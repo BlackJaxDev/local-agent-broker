@@ -17,7 +17,7 @@ public class BrokerRunIntegrationTests
     {
         string temporaryRoot = Path.Combine(
             Path.GetTempPath(),
-            $"xrengine-agent-broker-test-{Guid.NewGuid():N}");
+            $"local-agent-broker-test-{Guid.NewGuid():N}");
         string sessionName = "fake-session";
         string sessionRoot = Path.Combine(
             temporaryRoot,
@@ -26,7 +26,7 @@ public class BrokerRunIntegrationTests
             "00000000-000000-shared",
             "mcp-sessions",
             $"20260812-120000-{sessionName}");
-        string apiKeyEnvironmentVariable = $"XRE_TEST_OPENAI_KEY_{Guid.NewGuid():N}";
+        string apiKeyEnvironmentVariable = $"LOCAL_BROKER_TEST_OPENAI_KEY_{Guid.NewGuid():N}";
 
         try
         {
@@ -117,8 +117,8 @@ public class BrokerRunIntegrationTests
     {
         string temporaryRoot = Path.Combine(
             Path.GetTempPath(),
-            $"xrengine-agent-broker-test-{Guid.NewGuid():N}");
-        string apiKeyEnvironmentVariable = $"XRE_TEST_OPENAI_KEY_{Guid.NewGuid():N}";
+            $"local-agent-broker-test-{Guid.NewGuid():N}");
+        string apiKeyEnvironmentVariable = $"LOCAL_BROKER_TEST_OPENAI_KEY_{Guid.NewGuid():N}";
 
         try
         {

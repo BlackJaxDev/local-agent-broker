@@ -12,18 +12,18 @@ public class LiveOpenAiAgentSmokeTests
     public async Task CompletesOneStrictlyBudgetedPublicApiTurn()
     {
         if (!string.Equals(
-                Environment.GetEnvironmentVariable("XRE_RUN_LIVE_AGENT_BROKER_TESTS"),
+                Environment.GetEnvironmentVariable("LOCAL_AGENT_BROKER_RUN_LIVE_TESTS"),
                 "1",
                 StringComparison.Ordinal))
         {
-            Assert.Ignore("Set XRE_RUN_LIVE_AGENT_BROKER_TESTS=1 to authorize the live smoke test.");
+            Assert.Ignore("Set LOCAL_AGENT_BROKER_RUN_LIVE_TESTS=1 to authorize the live smoke test.");
         }
 
         string apiKey = Environment.GetEnvironmentVariable("OPENAI_API_KEY") ?? string.Empty;
         if (string.IsNullOrWhiteSpace(apiKey))
             Assert.Ignore("OPENAI_API_KEY is not set.");
 
-        string model = Environment.GetEnvironmentVariable("XRE_LIVE_AGENT_MODEL")
+        string model = Environment.GetEnvironmentVariable("LOCAL_AGENT_BROKER_LIVE_MODEL")
             ?? "gpt-5.6-luna";
         string[] approvedModels = ["gpt-5.6-luna", "gpt-5.6-terra", "gpt-5.6-sol"];
         approvedModels.ShouldContain(model);

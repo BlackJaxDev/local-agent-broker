@@ -1,37 +1,56 @@
 # Configuration
 
-Local Agent Broker runs as an MCP stdio server. Pass one JSON-RPC message per input line. The server writes protocol responses to stdout and diagnostics to stderr.
+Local Agent Broker runs as an MCP stdio server. Send one JSON-RPC message per input line. The server writes protocol responses to stdout and diagnostics to stderr.
 
-## Command line
+Select the workspace explicitly. Set `--repo-root`, `LOCAL_AGENT_BROKER_REPO_ROOT`, or `repositoryRoot` in a selected config file. The directory must exist. The broker does not discover a workspace or require an `AGENTS.md` file.
 
-| Option | Action |
-| --- | --- |
-| `--repo-root <path>` | Select an existing workspace directory. Required unless `LOCAL_AGENT_BROKER_REPO_ROOT` or its legacy name is set. The workspace does not need `AGENTS.md`. |
-| `--state-root <path>` | Select history, tray settings, and trace storage. The default is `<repo-root>/.local-agent-broker`. Exclude this directory from version control. |
-| `--sessions-root <path>` | Enable named editor sessions from `session.json` files below this directory. Sessions are disabled by default. |
-| `--integration xrengine` | Use the XRENGINE state and session paths when explicit roots are absent. |
-| `--api-key-env <name>` | Name the OpenAI API key variable. The default is `OPENAI_API_KEY`. |
-| `--anthropic-api-key-env <name>` | Name the Anthropic API key variable. The default is `ANTHROPIC_API_KEY`. |
-| `--editor-auth-env <name>` | Name the optional editor authentication token variable. |
+## Sources and precedence
 
-Command-line values take priority over environment values. For each setting, a `LOCAL_AGENT_BROKER_` variable takes priority over the matching legacy `XRE_LOCAL_AGENT_BROKER_` variable. The legacy names remain available for existing launch scripts.
+For each setting, the broker uses the first available value in this order: command line, `LOCAL_AGENT_BROKER_*` environment variable, selected JSON config file, default. Select the config file with `--config <path>` or `LOCAL_AGENT_BROKER_CONFIG`. There is no automatic config file search. A relative config file path starts at the process working directory.
 
-| Variable suffix | Default | Limit or use |
-| --- | --- | --- |
-| `REPO_ROOT` | None | Existing workspace directory. |
-| `STATE_ROOT` | `<repo-root>/.local-agent-broker` | Storage path. |
-| `SESSIONS_ROOT` | Disabled | Session manifest directory. |
-| `INTEGRATION` | None | Accepts `xrengine`. |
-| `API_KEY_ENV` | `OPENAI_API_KEY` | Variable name, not a key value. |
-| `ANTHROPIC_API_KEY_ENV` | `ANTHROPIC_API_KEY` | Variable name, not a key value. |
-| `EDITOR_AUTH_ENV` | None | Variable name for an editor token. |
-| `MAX_CONCURRENCY` | `4` | Global active-run limit, from 1 to 100. |
-| `MAX_RUNS` | At least `32` or `MAX_CONCURRENCY` | Retained-run limit, from 4 to 256. It must be at least `MAX_CONCURRENCY`. |
-| `RETENTION_MINUTES` | `120` | In-memory terminal-run retention, from 1 to 1440 minutes. |
-| `TRACE` | `off` | Accepts `off` or `metadata`. The metadata trace contains no prompt text. |
+A relative `repositoryRoot` in the JSON file starts at the config file directory. A relative `--repo-root` or `LOCAL_AGENT_BROKER_REPO_ROOT` starts at the process working directory. Relative state and sessions roots start at the final workspace root, regardless of their source.
 
-For example, set `LOCAL_AGENT_BROKER_MAX_CONCURRENCY` to configure the global limit. The matching legacy name is `XRE_LOCAL_AGENT_BROKER_MAX_CONCURRENCY`. Do not put API key values in arguments or source files. The broker reads the selected key variable from its process environment. On Windows, it also checks the user environment when the process value is absent. `ANTHROPIC_WORKSPACE_ID` is optional for an Anthropic key with more than one workspace.
+| Command line | Environment suffix | JSON field | Default and limit |
+| --- | --- | --- | --- |
+| `--config <path>` | `CONFIG` | — | No config file. |
+| `--repo-root <path>` | `REPO_ROOT` | `repositoryRoot` | Required existing directory. |
+| `--state-root <path>` | `STATE_ROOT` | `stateRoot` | `<repo-root>/.local-agent-broker`. Exclude it from version control. |
+| `--sessions-root <path>` | `SESSIONS_ROOT` | `sessionsRoot` | None. Named editor sessions are disabled. |
+| `--api-key-env <name>` | `API_KEY_ENV` | `apiKeyEnvironmentVariable` | `OPENAI_API_KEY`. |
+| `--anthropic-api-key-env <name>` | `ANTHROPIC_API_KEY_ENV` | `anthropicApiKeyEnvironmentVariable` | `ANTHROPIC_API_KEY`. |
+| `--editor-auth-env <name>` | `EDITOR_AUTH_ENV` | `editorAuthTokenEnvironmentVariable` | None. |
+| `--max-concurrency <number>` | `MAX_CONCURRENCY` | `maximumConcurrentRuns` | 4; range 1–100. |
+| `--max-runs <number>` | `MAX_RUNS` | `maximumRetainedRuns` | At least 32 or the concurrency limit; range 4–256. Must be at least the concurrency limit. |
+| `--retention-minutes <number>` | `RETENTION_MINUTES` | `retentionMinutes` | 120; range 1–1440. |
+| `--trace <mode>` | `TRACE` | `trace` | `off`; also accepts `metadata`. The metadata trace has no prompt text. |
+| `--launch-tray true\|false` | `LAUNCH_TRAY` | `launchTray` | `true`. Set `false` for CI or headless use. |
+| — | — | `repositoryAccess` | Empty text policy additions. See below. |
 
-The XRENGINE integration resolves state under `<repo-root>/Build/_AgentValidation/00000000-000000-shared/local-agent-broker-ui` and sessions under `<repo-root>/Build/_AgentValidation/00000000-000000-shared/mcp-sessions`. Explicit `--state-root` and `--sessions-root` values override these defaults.
+Use a provider key variable name in `apiKeyEnvironmentVariable` or `anthropicApiKeyEnvironmentVariable`. Do not put a key value in the config file, arguments, or source files. The broker reads the selected variable from its process environment. On Windows, it also checks the user environment when the process value is absent. `ANTHROPIC_WORKSPACE_ID` is optional for an Anthropic key with more than one workspace.
 
-The Windows tray companion accepts `--repo-root <path>`, `--state-root <path>`, and `--show-history`. The broker passes its state root when it starts the tray. The tray uses the generic state default if it starts without `--state-root`.
+The JSON file uses camelCase names. Unknown fields, including unknown fields in `repositoryAccess`, cause a configuration error. This check helps find typing errors.
+
+```json
+{
+  "repositoryRoot": ".",
+  "stateRoot": ".local-agent-broker",
+  "sessionsRoot": ".broker-sessions",
+  "maximumConcurrentRuns": 4,
+  "launchTray": false,
+  "repositoryAccess": {
+    "additionalTextExtensions": [".wgsl"],
+    "additionalTextFileNames": ["Containerfile"],
+    "excludedPaths": ["private"]
+  }
+}
+```
+
+`repositoryAccess` accepts `additionalTextExtensions`, `additionalTextFileNames`, and `excludedPaths`, each a list of strings. These additions do not override blocked secret files, traversal checks, reparse-point checks, the state root exclusion, or the sessions root exclusion. Run requests still need explicit allowed repository roots before they can read files.
+
+## Editor sessions and tray
+
+Each named editor session uses a `session.json` manifest below `sessionsRoot`. The manifest has `name` and `endpoint` fields. The endpoint must be loopback HTTP or HTTPS. A run names the session with the existing `editor_session` request field. A configured sessions root does not grant editor tools to a run. With an empty `sessionIdentityPath`, the preflight checks endpoint liveness only. Set a path such as `["session", "name"]` to require that ping result property to equal the requested session name. Missing, non-string, or unequal identities fail the run. The broker does not start or discover editor processes.
+
+The Windows tray companion accepts `--repo-root <path>`, `--state-root <path>`, and `--show-history`. The broker passes its state root when it starts the tray. Set `launchTray` to `false` when the tray is not needed.
+
+The build wrapper uses the `LOCAL_AGENT_BROKER_BUILD_MUTEX` environment variable to select a Windows build lock. The default is `Local\LocalAgentBroker-Build`. This build setting is independent of the broker process configuration.

@@ -24,17 +24,17 @@ See [configuration](docs/configuration.md) for all settings and [the protocol gu
 & ./Tools/Invoke-Build.ps1 -DotnetArguments @('test', 'tests/LocalAgentBroker.Tests/LocalAgentBroker.Tests.csproj', '--no-restore')
 ```
 
-The build wrapper limits MSBuild workers and shares the Windows build lock with XRENGINE.
+The build wrapper limits MSBuild workers. Set `LOCAL_AGENT_BROKER_BUILD_MUTEX` to share its Windows build lock with another build process. Its default is `Local\LocalAgentBroker-Build`.
 
 ## Run
 
-Build the server, then configure an MCP client to launch the DLL with a workspace path:
+Build the server, then configure an MCP client to launch the DLL with an explicit workspace path:
 
 ```powershell
 dotnet ./src/LocalAgentBroker/bin/Debug/net10.0/LocalAgentBroker.dll --repo-root <workspace>
 ```
 
-The server reads newline-delimited JSON-RPC from stdin and writes MCP responses to stdout. Use `--state-root <path>` to select broker storage. The default is `.local-agent-broker/` in the workspace; exclude that directory from version control. Generic mode disables editor sessions unless `--sessions-root <path>` names a manifest directory. The optional `--integration xrengine` selects XRENGINE's existing state and session locations.
+The server reads newline-delimited JSON-RPC from stdin and writes MCP responses to stdout. The default state root is `.local-agent-broker/` in the workspace; exclude it from version control. Use `--config <path>` or `LOCAL_AGENT_BROKER_CONFIG` to select a JSON configuration file. A workspace path is required in the CLI, environment, or file. The broker does not discover or trust a workspace automatically. See [configuration](docs/configuration.md) for path rules and all settings.
 
 For a local protocol check with no API request:
 
@@ -53,16 +53,12 @@ The check validates the server name and all five tool names. It does not call `s
 
 The script publishes the server to `artifacts/broker/` and packs `LocalAgentBroker.Orchestration` to `artifacts/packages/`. `-IncludeTray` publishes the Windows tray companion to `artifacts/broker/tray/`, where the server can find it. Release archives, packages, and `SHA256SUMS.txt` are written to `artifacts/release/`. `-SkipPackage` omits the package.
 
-The XRENGINE adapter is optional at runtime. The server includes the small adapter assembly, but activates its path defaults only with `--integration xrengine`. The engine editor consumes a pinned orchestration package. The server does not need an engine checkout to build or start.
-
 ## Access boundaries
 
-A run has turn, tool, byte, retry, and concurrency budgets. Repository access and editor access are opt-in. Read-only repository tools require explicit allowed roots. Editor mutation requires an explicit allowlist and a named session that permits mutation. Destructive editor access needs separate authority. Do not pass API keys in tool arguments, logs, or source files.
+A run has turn, tool, byte, retry, and concurrency budgets. Repository access and editor access are opt-in. Read-only repository tools require explicit allowed roots. A configured sessions root enables named session manifests; it does not grant editor access to a run. Editor mutation requires an explicit allowlist and a named session that permits mutation. Destructive editor access needs separate authority. Configure provider key variable names, never key values, in broker settings. Do not pass keys in tool arguments, logs, or source files.
 
 The caller is responsible for the cost of each provider request. Check `requested_model` and `actual_model` in the run result before using its evidence. Review any proposed code changes and validate them in the local workspace.
 
-## License and provenance
+## License
 
 This project uses the [MIT License](LICENSE.md). Third-party components retain their own licenses. Their notices remain in [docs/licenses/](docs/licenses/) and the tray vendor directory.
-
-The code was extracted from `BlackJaxDev/XRENGINE` at commit `3abe3cffd`. The extraction preserves 21 selected history commits. The standalone layout and scripts are later changes.

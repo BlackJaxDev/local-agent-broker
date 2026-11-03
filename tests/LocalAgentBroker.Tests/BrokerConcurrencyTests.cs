@@ -15,9 +15,9 @@ public class BrokerConcurrencyTests
     [SetUp]
     public void SetUp()
     {
-        _temporaryRoot = Path.Combine(Path.GetTempPath(), $"xrengine-broker-concurrency-{Guid.NewGuid():N}");
+        _temporaryRoot = Path.Combine(Path.GetTempPath(), $"local-broker-concurrency-{Guid.NewGuid():N}");
         Directory.CreateDirectory(_temporaryRoot);
-        _apiKeyVariable = $"XRE_TEST_OPENAI_KEY_{Guid.NewGuid():N}";
+        _apiKeyVariable = $"LOCAL_BROKER_TEST_OPENAI_KEY_{Guid.NewGuid():N}";
         Environment.SetEnvironmentVariable(_apiKeyVariable, "test-key");
     }
 

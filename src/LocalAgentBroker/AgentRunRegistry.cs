@@ -37,7 +37,9 @@ internal sealed partial class AgentRunRegistry : IAsyncDisposable
         _orchestrator = new AgentOrchestrator(
             new BrokerModelClient(httpClient, configuration));
         _sessionResolver = new EditorSessionResolver(configuration.SessionsRoot);
-        _repositoryPathPolicy = new RepositoryPathPolicy(configuration.RepositoryRoot, configuration.StateRoot);
+        _repositoryPathPolicy = new RepositoryPathPolicy(
+            configuration.RepositoryRoot, configuration.StateRoot,
+            configuration.RepositoryAccess, configuration.SessionsRoot);
         _contextSnapshotter = new RepositoryContextSnapshotter(_repositoryPathPolicy);
         _traceWriter = new BrokerTraceWriter(configuration);
         _historyPublisher = new BrokerHistoryPublisher(configuration);
@@ -119,7 +121,8 @@ internal sealed partial class AgentRunRegistry : IAsyncDisposable
             CancellationToken.None,
             TaskContinuationOptions.ExecuteSynchronously,
             TaskScheduler.Default);
-        BrokerUiLauncher.EnsureStarted(_configuration.RepositoryRoot, _configuration.StateRoot);
+        if (_configuration.LaunchTray)
+            BrokerUiLauncher.EnsureStarted(_configuration.RepositoryRoot, _configuration.StateRoot);
         return runId;
     }
 
@@ -294,7 +297,7 @@ internal sealed partial class AgentRunRegistry : IAsyncDisposable
             record.Request.ToolPolicy,
             _configuration.ReadEditorAuthToken(),
             Timeout.InfiniteTimeSpan);
-        await editorProvider.PreflightAsync(session.Name, cancellationToken);
+        await editorProvider.PreflightAsync(session.Name, cancellationToken, _configuration.SessionIdentityPath);
         IAgentToolProvider? repositoryProvider =
             CreateRepositoryProvider(record.Request, repositoryRoots);
         IAgentToolProvider provider = repositoryProvider is null

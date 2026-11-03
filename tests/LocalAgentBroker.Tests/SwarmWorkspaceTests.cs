@@ -118,7 +118,7 @@ public class SwarmWorkspaceTests
     {
         public TemporaryRepository()
         {
-            Root = Path.Combine(Path.GetTempPath(), $"xrengine-swarm-workspace-{Guid.NewGuid():N}");
+            Root = Path.Combine(Path.GetTempPath(), $"local-broker-swarm-workspace-{Guid.NewGuid():N}");
             Directory.CreateDirectory(Root);
         }
 

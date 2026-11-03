@@ -56,9 +56,138 @@ public class HttpMcpToolProviderTests
             new AgentToolPolicy());
 
         AgentToolProviderException exception = await Should.ThrowAsync<AgentToolProviderException>(
-            () => provider.PreflightAsync("expected", CancellationToken.None));
+            () => provider.PreflightAsync("expected", CancellationToken.None,
+                ["status", "editorSession", "name"]));
 
         exception.Category.ShouldBe(AgentFailureCategory.ToolDiscovery);
+    }
+
+    [Test]
+    public async Task PreflightReturnsConfiguredSessionIdentity()
+    {
+        var handler = new QueueHttpMessageHandler();
+        handler.Enqueue(_ => JsonResponse(
+            """{"jsonrpc":"2.0","id":"1","result":{"status":{"editorSession":{"name":"expected"}}}}"""));
+        using var client = new HttpClient(handler);
+        var provider = new HttpMcpToolProvider(
+            client, new Uri("http://localhost:5467/mcp/"), new AgentToolPolicy());
+
+        string? identity = await provider.PreflightAsync("expected", CancellationToken.None,
+            ["status", "editorSession", "name"]);
+
+        identity.ShouldBe("expected");
+    }
+
+    [TestCase("""{"jsonrpc":"2.0","id":"1","result":{"status":{}}}""")]
+    [TestCase("""{"jsonrpc":"2.0","id":"1","result":{"status":{"editorSession":{"name":7}}}}""")]
+    public async Task PreflightRejectsMissingOrNonStringIdentity(string response)
+    {
+        var handler = new QueueHttpMessageHandler();
+        handler.Enqueue(_ => JsonResponse(response));
+        using var client = new HttpClient(handler);
+        var provider = new HttpMcpToolProvider(
+            client, new Uri("http://localhost:5467/mcp/"), new AgentToolPolicy());
+
+        AgentToolProviderException exception = await Should.ThrowAsync<AgentToolProviderException>(
+            () => provider.PreflightAsync("expected", CancellationToken.None,
+                ["status", "editorSession", "name"]));
+
+        exception.Category.ShouldBe(AgentFailureCategory.ToolDiscovery);
+    }
+
+    [Test]
+    public async Task PreflightWithoutIdentityPathChecksOnlyLiveness()
+    {
+        var handler = new QueueHttpMessageHandler();
+        handler.Enqueue(_ => JsonResponse(
+            """{"jsonrpc":"2.0","id":"1","result":{"status":{"editorSession":{"name":"other"}}}}"""));
+        using var client = new HttpClient(handler);
+        var provider = new HttpMcpToolProvider(
+            client, new Uri("http://localhost:5467/mcp/"), new AgentToolPolicy());
+
+        string? identity = await provider.PreflightAsync("expected", CancellationToken.None);
+
+        identity.ShouldBeNull();
+        handler.RequestBodies.Count.ShouldBe(1);
+    }
+
+    [Test]
+    public async Task UnannotatedToolNameDoesNotGrantReadOrMutationAccess()
+    {
+        const string response =
+            """{"jsonrpc":"2.0","id":"1","result":{"tools":[{"name":"read_data","inputSchema":{"type":"object"}}]}}""";
+        foreach (AgentToolPolicy policy in new[]
+        {
+            new AgentToolPolicy(),
+            new AgentToolPolicy { AllowMutation = true, AllowedTools = ["read_data"] },
+        })
+        {
+            var handler = new QueueHttpMessageHandler();
+            handler.Enqueue(_ => JsonResponse(response));
+            using var client = new HttpClient(handler);
+            var provider = new HttpMcpToolProvider(
+                client, new Uri("http://localhost:5467/mcp/"), policy);
+
+            IReadOnlyList<AgentToolDefinition> tools = await provider.ListToolsAsync(CancellationToken.None);
+
+            tools.ShouldBeEmpty();
+        }
+    }
+
+    [Test]
+    public async Task UnannotatedToolRequiresDestructivePermissionAndExactAllowlist()
+    {
+        var handler = new QueueHttpMessageHandler();
+        handler.Enqueue(_ => JsonResponse(
+            """{"jsonrpc":"2.0","id":"1","result":{"tools":[{"name":"read_data","inputSchema":{"type":"object"}}]}}"""));
+        using var client = new HttpClient(handler);
+        var provider = new HttpMcpToolProvider(
+            client,
+            new Uri("http://localhost:5467/mcp/"),
+            new AgentToolPolicy
+            {
+                AllowMutation = true,
+                AllowDestructive = true,
+                AllowedTools = ["read_data"],
+            });
+
+        IReadOnlyList<AgentToolDefinition> tools = await provider.ListToolsAsync(CancellationToken.None);
+
+        tools.Select(static tool => tool.Name).ShouldBe(["read_data"]);
+        tools[0].IsReadOnly.ShouldBeFalse();
+        tools[0].IsDestructive.ShouldBeTrue();
+    }
+
+    [Test]
+    public async Task MutatingToolWithoutExplicitNonDestructiveHintRequiresDestructivePermission()
+    {
+        var handler = new QueueHttpMessageHandler();
+        handler.Enqueue(_ => JsonResponse(
+            """{"jsonrpc":"2.0","id":"1","result":{"tools":[{"name":"set_data","annotations":{"readOnlyHint":false},"inputSchema":{"type":"object"}}]}}"""));
+        using var client = new HttpClient(handler);
+        var provider = new HttpMcpToolProvider(
+            client,
+            new Uri("http://localhost:5467/mcp/"),
+            new AgentToolPolicy { AllowMutation = true, AllowedTools = ["set_data"] });
+
+        IReadOnlyList<AgentToolDefinition> tools = await provider.ListToolsAsync(CancellationToken.None);
+
+        tools.ShouldBeEmpty();
+    }
+
+    [Test]
+    public async Task ExplicitDestructiveHintBlocksReadOnlyAccess()
+    {
+        var handler = new QueueHttpMessageHandler();
+        handler.Enqueue(_ => JsonResponse(
+            """{"jsonrpc":"2.0","id":"1","result":{"tools":[{"name":"get_data","annotations":{"readOnlyHint":true,"destructiveHint":true},"inputSchema":{"type":"object"}}]}}"""));
+        using var client = new HttpClient(handler);
+        var provider = new HttpMcpToolProvider(
+            client, new Uri("http://localhost:5467/mcp/"), new AgentToolPolicy());
+
+        IReadOnlyList<AgentToolDefinition> tools = await provider.ListToolsAsync(CancellationToken.None);
+
+        tools.ShouldBeEmpty();
     }
 
     [Test]

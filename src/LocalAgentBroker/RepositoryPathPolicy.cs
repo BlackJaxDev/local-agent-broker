@@ -59,8 +59,16 @@ internal sealed class RepositoryPathPolicy
     private readonly string _repositoryRoot;
     private readonly string _repositoryRootPrefix;
     private readonly string? _stateRoot;
+    private readonly string? _sessionsRoot;
+    private readonly HashSet<string> _additionalTextExtensions;
+    private readonly HashSet<string> _additionalTextFileNames;
+    private readonly string[] _excludedPaths;
 
-    public RepositoryPathPolicy(string repositoryRoot, string? stateRoot = null)
+    public RepositoryPathPolicy(
+        string repositoryRoot,
+        string? stateRoot = null,
+        BrokerRepositoryOptions? options = null,
+        string? sessionsRoot = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(repositoryRoot);
         _repositoryRoot = Path.TrimEndingDirectorySeparator(Path.GetFullPath(repositoryRoot));
@@ -70,6 +78,41 @@ internal sealed class RepositoryPathPolicy
         _stateRoot = stateRoot is null
             ? null
             : Path.TrimEndingDirectorySeparator(Path.GetFullPath(stateRoot));
+        _sessionsRoot = sessionsRoot is null
+            ? null
+            : Path.TrimEndingDirectorySeparator(Path.GetFullPath(sessionsRoot));
+        options ??= new BrokerRepositoryOptions();
+        ArgumentNullException.ThrowIfNull(options.AdditionalTextExtensions);
+        ArgumentNullException.ThrowIfNull(options.AdditionalTextFileNames);
+        ArgumentNullException.ThrowIfNull(options.ExcludedPaths);
+        _additionalTextExtensions = new(StringComparer.OrdinalIgnoreCase);
+        foreach (string extension in options.AdditionalTextExtensions)
+        {
+            if (string.IsNullOrWhiteSpace(extension) || extension.Length < 2
+                || extension[0] != '.'
+                || extension[1..].Any(static character =>
+                    !char.IsAsciiLetterOrDigit(character) && character is not '_' and not '-'))
+                throw new ArgumentException("Additional text extensions must start with a period and contain only letters, digits, underscores, or hyphens.");
+            _additionalTextExtensions.Add(extension);
+        }
+        _additionalTextFileNames = new(StringComparer.OrdinalIgnoreCase);
+        foreach (string fileName in options.AdditionalTextFileNames)
+        {
+            if (string.IsNullOrWhiteSpace(fileName)
+                || fileName != fileName.Trim()
+                || fileName is "." or ".."
+                || fileName.IndexOfAny(['/', '\\', ':', '*', '?']) >= 0
+                || fileName.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0
+                || fileName.EndsWith('.') || fileName.EndsWith(' '))
+                throw new ArgumentException("Additional text file names must be ordinary file names without paths or wildcards.");
+            _additionalTextFileNames.Add(fileName);
+        }
+        _excludedPaths = new string[options.ExcludedPaths.Count];
+        for (int index = 0; index < _excludedPaths.Length; index++)
+        {
+            string relativePath = NormalizeRelativePath(options.ExcludedPaths[index], false, false);
+            _excludedPaths[index] = Path.GetFullPath(Path.Combine(_repositoryRoot, relativePath));
+        }
     }
 
     internal string RepositoryRoot => _repositoryRoot;
@@ -219,7 +262,7 @@ internal sealed class RepositoryPathPolicy
             FileOptions.SequentialScan);
     }
 
-    private string NormalizeRelativePath(string path, bool allowRepositoryRoot)
+    private string NormalizeRelativePath(string path, bool allowRepositoryRoot, bool applyExclusions = true)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
         if (!string.Equals(path, path.Trim(), StringComparison.Ordinal))
@@ -256,15 +299,24 @@ internal sealed class RepositoryPathPolicy
             string deviceName = Path.GetFileNameWithoutExtension(segment);
             if (s_reservedDeviceNames.Contains(deviceName))
                 throw new ArgumentException("Repository paths cannot use reserved device names.");
-            if (s_blockedDirectoryNames.Contains(segment))
+            if (applyExclusions && s_blockedDirectoryNames.Contains(segment))
                 throw new ArgumentException($"Repository path segment '{segment}' is excluded.");
         }
 
         string normalized = string.Join(Path.DirectorySeparatorChar, segments);
-        if (_stateRoot is not null
+        if (applyExclusions && _stateRoot is not null
             && IsSameOrDescendant(Path.Combine(_repositoryRoot, normalized), _stateRoot))
         {
             throw new ArgumentException("Broker state is excluded from repository access.");
+        }
+        if (applyExclusions)
+        {
+            string fullPath = Path.Combine(_repositoryRoot, normalized);
+            if (_sessionsRoot is not null && IsSameOrDescendant(fullPath, _sessionsRoot))
+                throw new ArgumentException("Session storage is excluded from repository access.");
+            foreach (string excludedPath in _excludedPaths)
+                if (IsSameOrDescendant(fullPath, excludedPath))
+                    throw new ArgumentException("Repository path is excluded by the workspace configuration.");
         }
 
         return normalized;
@@ -339,7 +391,7 @@ internal sealed class RepositoryPathPolicy
             || normalizedCandidate.StartsWith(prefix, StringComparison.OrdinalIgnoreCase);
     }
 
-    private static void EnsureTextFileNameAllowed(string normalizedRelativePath)
+    private void EnsureTextFileNameAllowed(string normalizedRelativePath)
     {
         string fileName = Path.GetFileName(normalizedRelativePath);
         if (fileName.StartsWith(".env", StringComparison.OrdinalIgnoreCase)
@@ -351,13 +403,15 @@ internal sealed class RepositoryPathPolicy
         string extension = Path.GetExtension(fileName);
         if (s_blockedExtensions.Contains(extension))
             throw new ArgumentException($"Repository file extension '{extension}' is excluded.");
+        if (_additionalTextFileNames.Contains(fileName))
+            return;
         if (extension.Length == 0)
         {
             if (!s_allowedExtensionlessNames.Contains(fileName))
                 throw new ArgumentException($"Repository file '{fileName}' is not an allowed text type.");
             return;
         }
-        if (!s_allowedExtensions.Contains(extension))
+        if (!s_allowedExtensions.Contains(extension) && !_additionalTextExtensions.Contains(extension))
             throw new ArgumentException($"Repository file extension '{extension}' is not an allowed text type.");
     }
 

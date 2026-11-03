@@ -16,9 +16,9 @@ public class BrokerHistoryPersistenceTests
     [SetUp]
     public void SetUp()
     {
-        _temporaryRoot = Path.Combine(Path.GetTempPath(), $"xrengine-broker-history-{Guid.NewGuid():N}");
+        _temporaryRoot = Path.Combine(Path.GetTempPath(), $"local-broker-history-{Guid.NewGuid():N}");
         Directory.CreateDirectory(_temporaryRoot);
-        _apiKeyVariable = $"XRE_TEST_OPENAI_KEY_{Guid.NewGuid():N}";
+        _apiKeyVariable = $"LOCAL_BROKER_TEST_OPENAI_KEY_{Guid.NewGuid():N}";
         Environment.SetEnvironmentVariable(_apiKeyVariable, "test-key");
     }
 

@@ -12,7 +12,7 @@ internal sealed class EditorSessionResolver(string? sessionsRoot)
     public ResolvedEditorSession Resolve(string sessionName)
     {
         if (_sessionsRoot is null)
-            throw new InvalidOperationException("Editor sessions are disabled. Set --sessions-root or select an integration.");
+            throw new InvalidOperationException("Editor sessions are disabled. Set --sessions-root or sessionsRoot in --config.");
 
         if (string.IsNullOrWhiteSpace(sessionName)
             || sessionName.Length > 64

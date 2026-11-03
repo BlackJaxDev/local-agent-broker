@@ -13,7 +13,6 @@
   <ItemGroup>
     <ProjectReference Include="..\LocalAgentBroker.Orchestration\LocalAgentBroker.Orchestration.csproj" />
     <ProjectReference Include="..\LocalAgentBroker.Shared\LocalAgentBroker.Shared.csproj" />
-    <ProjectReference Include="..\LocalAgentBroker.Integrations.XREngine\LocalAgentBroker.Integrations.XREngine.csproj" />
   </ItemGroup>
 
 </Project>
