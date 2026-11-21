@@ -14,6 +14,14 @@ Call `start_agent_run` with `objective` and an exact `requested_model`. Add succ
 
 `start_agent_run` returns `queued` with a run ID. Poll `get_agent_run` until the status is `completed`, `failed`, or `cancelled`. `queued` and `running` are nonterminal. Inspect both `requested_model` and `actual_model`; the broker treats an exact-model mismatch as a failure. A failure can include provider-attempt diagnostics. A cancellation request is not a terminal result; poll until the status changes.
 
+## Execution modes
+
+`AgentRunRequest.ExecutionMode` selects a direct provider API run or a signed-in local runtime, such as a Codex, Claude, Gemini, Copilot, or Antigravity client. The MCP server starts API runs only. It rejects every other `execution_mode` before it validates the rest of the request.
+
+A host application that runs a local client implements `IAgentRunExecutor` and calls the shared `AgentRequestValidator`. `AgentOrchestrator` implements the same interface for API runs. Local runtime requests must set `max_turns`, `max_retries`, and `max_output_tokens` to 0, because the host cannot enforce those limits inside the client. They cannot use background mode, swarms, or hosted tools. `AgentRunResult.RuntimeInfo` reports the client name, version, sign-in mode, model evidence, and the controls that the client applied or ignored. `TurnCountReported` and `RetryCountReported` are false when the client does not report those counts.
+
+`reasoning_effort` also accepts `minimal` and `ultra` for local runtimes that advertise them. The model catalog still limits API runs to the efforts that each exact model supports. A host can set `UseProviderDefaultReasoningEffort` to omit the effort from the provider request, or `EnforceReasoningEffort` to require a client to apply the selected effort. It cannot set both. `UseInProcessToolProvider` lets an embedding host supply its own authorized tools without an `editor_session`. These three properties are not read from JSON, so a remote MCP caller cannot set them.
+
 ## Local access
 
 Without `repository_access` or `editor_session`, a worker gets no local tools. `context_files` attaches immutable, repository-relative UTF-8 text snapshots at admission. The files go to the selected provider. An optional complete-file SHA-256 rejects changed input. The broker rejects path traversal, reparse-point escape, generated output, common secret containers, and the configured state root.

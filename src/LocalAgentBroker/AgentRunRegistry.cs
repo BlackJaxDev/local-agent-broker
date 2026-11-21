@@ -50,6 +50,10 @@ internal sealed partial class AgentRunRegistry : IAsyncDisposable
 
     public string Start(AgentRunRequest request)
     {
+        // Local runtime modes need a host that owns the signed-in client process.
+        // This server starts provider API workers only, so it rejects those modes before validation.
+        if (request.ExecutionMode != AgentExecutionMode.Api)
+            throw new ArgumentException("execution_mode must be api; this broker starts provider API workers only.");
         IReadOnlyList<string> errors = AgentRequestValidator.Validate(request);
         if (errors.Count > 0)
             throw new ArgumentException(string.Join("; ", errors));
